@@ -1,0 +1,1 @@
+export type Dimension = "2D" | "3D";
