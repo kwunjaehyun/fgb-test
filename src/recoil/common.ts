@@ -1,7 +1,7 @@
 import { atom } from "recoil";
-import { Dimension } from "../types/type";
+import { MapType } from "../types/type";
 
-export const DimensionState = atom<Dimension>({
-    key: "DimensionState",
-    default: "2D",
-  });
+export const CurrentMapState = atom<MapType>({
+  key: "CurrentMapState",
+  default: "OL",
+});
