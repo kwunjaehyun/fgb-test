@@ -10,14 +10,17 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Layer from "ol/layer/Layer";
 import WebGLVectorLayerRenderer from "ol/renderer/webgl/VectorLayer.js";
+import MapEvent from "ol/MapEvent";
+import Feature from "ol/Feature";
+import Geometry from "ol/geom/Geometry";
 
 class WebGLLayer extends Layer {
   createRenderer(): WebGLVectorLayerRenderer {
     return new WebGLVectorLayerRenderer(this, {
       style: {
-        "stroke-color": ["*", ["get", "COLOR"], [220, 220, 220]],
+        "stroke-color": ["*", ["get", "COLOR"], [0, 162, 232]],
         "stroke-width": 1.5,
-        "fill-color": ["*", ["get", "COLOR"], [255, 255, 255, 0.6]],
+        "fill-color": ["*", ["get", "COLOR"], [153, 217, 234, 0.45]],
       },
     });
   }
@@ -25,14 +28,12 @@ class WebGLLayer extends Layer {
 
 export class OlController {
   private _olMap: OlMap | undefined;
-  private _changeViewCallback: ((event: BaseEvent) => void) | undefined;
+  private _changeViewCallback: ((event: MapEvent) => void) | undefined;
   private _changeSizeCallback: ((event: ObjectEvent) => void) | undefined;
   public zizukVectorSource = new VectorSource();
-  public webglVectorSource = new VectorSource({
-    loader: (extent, resolution, projection) => {
-      console.info(extent, resolution, projection);
-    },
-  });
+  public webglVectorSource = new VectorSource();
+  public newFeaturesGenerator: AsyncGenerator<Feature<Geometry>, any, unknown> | undefined;
+  public prevFeatures: Feature<Geometry>[] | undefined;
 
   constructor() {}
 
@@ -83,22 +84,21 @@ export class OlController {
     view.setResolution(resolution);
   }
 
-  addChangeViewCallback(callback: (event: BaseEvent) => void) {
+  addChangeViewCallback(callback: (event: MapEvent) => void) {
     if (!this.olMap) return;
     const view = this.olMap.getView();
-    this._changeViewCallback = debounce(callback, 800);
-    view.on("change", this._changeViewCallback);
+    this._changeViewCallback = debounce(callback, 0);
+    this.olMap.on("moveend", this._changeViewCallback);
   }
 
   removeChangeViewCallback() {
     if (!this.olMap || !this._changeViewCallback) return;
-    const view = this.olMap.getView();
-    view.un("change", this._changeViewCallback);
+    this.olMap.un("moveend", this._changeViewCallback);
   }
 
   addChangeSizeCallback(callback: (event: ObjectEvent) => void) {
     if (!this.olMap) return;
-    this._changeSizeCallback = debounce(callback, 800);
+    this._changeSizeCallback = debounce(callback, 0);
     this.olMap.on("change:size", this._changeSizeCallback);
   }
 

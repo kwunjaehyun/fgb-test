@@ -1,7 +1,14 @@
 import { atom, selector } from "recoil";
-import { CanvasSize, LonLat, OlViewInfomation } from "../types/type";
-import { FeatureCollection } from "geojson";
+import { CanvasSize, LonLat, OlViewInfomation, VectorSourceType } from "../types/type";
 
+import Feature from "ol/Feature"
+import Geometry from "ol/geom/Geometry"
+import Vector from "ol/source/Vector";
+import { useMapController } from "../provider/MapControllerProvider";
+
+export type testtype = {
+  iter: AsyncGenerator<Feature<Geometry>, any, unknown> | null
+}
 export const centerState = atom<LonLat>({
   key: "centerState",
   default: [126.92402046760674, 37.52379857407708] as LonLat,
@@ -22,14 +29,6 @@ export const distanceState = atom<number>({
   default: 1000,
 });
 
-export const storedFeatureCollectionState = atom<FeatureCollection>({
-  key: "storedFeatureState",
-  default: {
-    type: "FeatureCollection",
-    features: [],
-  },
-});
-
 export const olViewState = selector<OlViewInfomation>({
   key: "olViewInfomationState",
   get: ({ get }) => {
@@ -38,6 +37,28 @@ export const olViewState = selector<OlViewInfomation>({
     return { center, resolution };
   },
 });
+
+export const featuresCountState = atom<number>({
+  key: "featuresCountState",
+  default: 0
+});
+
+export const vectorSourceTypeState = atom<VectorSourceType>({
+  key: "vectorSourceTypeState",
+  default: "webgl"
+});
+
+export const vectorSourceState = selector<Vector>({
+  key: 'vectorSourceState',
+  get: ({ get }) => {
+    const { mapController } = useMapController();
+    const ol = mapController.ol;
+    const {zizukVectorSource, webglVectorSource} = ol;
+    const vsType = get(vectorSourceTypeState);
+    
+    return vsType === 'canvas' ? zizukVectorSource : webglVectorSource;
+  },
+})
 
 /* export const resolutionState = selector<number>({
   key: "resolutionState",

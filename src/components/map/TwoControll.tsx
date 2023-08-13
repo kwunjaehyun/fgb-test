@@ -1,19 +1,68 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useMapController } from "../../provider/MapControllerProvider";
 import { useChangeSize, useChangeViewCallback } from "../../hook/changeOpenlayers";
-import { useRecoilValue } from "recoil";
+import { useRecoilValue, useSetRecoilState } from "recoil";
 import { OlViewInfomation } from "../../types/type";
-import { olViewState, storedFeatureCollectionState } from "../../recoil/map";
-import { FeatureCollection } from "geojson";
-import GeoJsonFormat from "ol/format/GeoJSON";
+import { featuresCountState, olViewState, vectorSourceState } from "../../recoil/map";
+import Vector from "ol/source/Vector";
 
-const geojsonFormat = new GeoJsonFormat();
 const TwoControll = () => {
   const { mapController, olState } = useMapController();
   const changeViewCallback = useChangeViewCallback();
   const changeSizeCallback = useChangeSize();
   const olViewInfomation = useRecoilValue<OlViewInfomation>(olViewState);
-  const storedFeatureCollection = useRecoilValue<FeatureCollection>(storedFeatureCollectionState);
+  const requestRef = useRef<number|undefined>(undefined);
+  const setFeaturesCount = useSetRecoilState<number>(featuresCountState);
+  const currentvectorSource = useRecoilValue<Vector>(vectorSourceState);
+  
+  const animate = useCallback(async (time: number) => {
+    const iter = mapController.ol.newFeaturesGenerator;
+    
+    if (!iter) {
+      requestRef.current = requestAnimationFrame(animate);
+      return;
+    }
+    const frameStartTime = new Date().getTime();
+    const olController = mapController.ol;
+    const vs = currentvectorSource;
+    let doing = true;
+    let done: boolean | undefined = false;
+    while (doing) {
+      try {
+        const curime = new Date().getTime();
+        const feature = await iter.next();
+        const value = feature.value; 
+        if (value) vs.addFeature(value);
+        
+        doing = curime - frameStartTime < 200/*  ||  */;
+        done = feature.done;
+        if (done) olController.newFeaturesGenerator = undefined;
+      } catch (err) {
+        doing = false;
+        olController.newFeaturesGenerator = undefined;
+      }
+    }
+
+    if (done) {
+      const prevFeatures = olController.prevFeatures;
+      prevFeatures?.forEach((feature) => {
+        vs.removeFeature(feature);
+      });
+      olController.prevFeatures = undefined;
+
+      setFeaturesCount(vs.getFeatures().length);
+    }
+    // Change the state according to the animation
+    requestRef.current = requestAnimationFrame(animate);
+  }, []);
+    
+  // DON’T DO THIS
+  useEffect(() => {
+    requestRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (requestRef.current !== undefined) cancelAnimationFrame(requestRef.current)
+    };
+  }, []); // Make sure the effect runs only once
 
   useEffect(() => {
     if (!olState) return;
@@ -25,19 +74,6 @@ const TwoControll = () => {
     ol.appliViewState(olViewInfomation);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [olState]);
-
-  useEffect(() => {
-    if (!olState) return;
-    /* const { ol } = mapController;
-    const vectorSource = ol.zizukVectorSource;
-    vectorSource.clear(true);
-
-    if (storedFeatureCollection.features.length === 0) return;
-    const features = geojsonFormat.readFeatures(storedFeatureCollection);
-    vectorSource.addFeatures(features); */
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storedFeatureCollection]);
   return null;
 };
 export default TwoControll;

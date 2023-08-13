@@ -1,13 +1,17 @@
-import BaseEvent from "ol/events/Event";
-import { useResetRecoilState, useSetRecoilState } from "recoil";
-import { centerState, resolutionState, storedFeatureCollectionState } from "../recoil/map";
+import { useRecoilValue, useResetRecoilState, useSetRecoilState } from "recoil";
+import { centerState, featuresCountState, resolutionState, vectorSourceState, } from "../recoil/map";
 import { LonLat } from "../types/type";
 import OlMap from "ol/Map";
-import View from "ol/View";
+
 import { ObjectEvent } from "ol/Object";
 import * as flatgeobuf from "flatgeobuf";
-import { FeatureCollection, Geometry, GeoJsonProperties, Feature } from "geojson";
+import Feature from "ol/Feature"
+import Geometry from "ol/geom/Geometry"
 import { produce } from "immer";
+import { useMapController } from "../provider/MapControllerProvider";
+import GeoJsonFormat from "ol/format/GeoJSON";
+import MapEvent from "ol/MapEvent";
+import Vector from "ol/source/Vector";
 
 export const useChangeSize = () => {
   const setCanvasSize = useSetRecoilState<LonLat>(centerState);
@@ -18,9 +22,9 @@ export const useChangeSize = () => {
   };
 };
 
-const isAsyncGenerator = (
-  deserialize: FeatureCollection<Geometry, GeoJsonProperties> | AsyncGenerator<flatgeobuf.IGeoJsonFeature>,
-): deserialize is AsyncGenerator<flatgeobuf.IGeoJsonFeature> => {
+const isAsyncGenerator = <T>(
+  deserialize: Feature<Geometry>[] | AsyncGenerator<T>,
+): deserialize is AsyncGenerator<T> => {
   return (
     typeof deserialize === "object" &&
     deserialize !== null &&
@@ -31,14 +35,18 @@ const isAsyncGenerator = (
     typeof deserialize[Symbol.asyncIterator] === "function"
   );
 };
+const geojsonFormat = new GeoJsonFormat();
 
 export const useChangeViewCallback = () => {
+  const { mapController } = useMapController();
   const setCenter = useSetRecoilState<LonLat>(centerState);
   const setResolution = useSetRecoilState<number>(resolutionState);
-  const setStoredFeatureCollection = useSetRecoilState<FeatureCollection>(storedFeatureCollectionState);
-  const resetStoredFeatureCollection = useResetRecoilState(storedFeatureCollectionState);
-  return async (event: BaseEvent) => {
-    const { target: olview }: { target: View } = event;
+  const setFeaturesCount = useSetRecoilState<number>(featuresCountState);
+  const currentvectorSource = useRecoilValue<Vector>(vectorSourceState);
+  
+  return async (event: MapEvent) => {
+    const {map} = event;
+    const olview = map.getView();    
     const center = olview.getCenter();
     const resolution = olview.getResolution();
 
@@ -51,8 +59,8 @@ export const useChangeViewCallback = () => {
     }
 
     const zoom = olview.getZoom();
-
     if (zoom && zoom > 15) {
+      mapController.ol.newFeaturesGenerator = undefined;
       const extent = olview.calculateExtent();
       const minX = extent[0];
       const minY = extent[1];
@@ -60,32 +68,23 @@ export const useChangeViewCallback = () => {
       const maxY = extent[3];
       const aws = "https://fgb-test.s3.ap-northeast-2.amazonaws.com/jijuk.fgb";
       //const yh = `http://192.168.10.33:8080/fgb?minx=${minX}&miny=${minY}&maxx=${maxX}&maxy=${maxY}`;
-      const iter = flatgeobuf.geojson.deserialize(aws, {
+      const iter = flatgeobuf.ol.deserialize(aws, {
         minX,
         minY,
         maxX,
         maxY,
       });
-      resetStoredFeatureCollection();
-      const features = [] as Feature[];
-      if (isAsyncGenerator(iter)) {
-        for await (const feature of iter) {
-          if (feature.type === "Feature") {
-            features.push(feature as Feature);
-          }
-        }
-
-        setStoredFeatureCollection(
-          produce(draft => {
-            draft.features.length = 0;
-            draft.features.push(...features);
-          }),
-        );
+      
+      if (isAsyncGenerator<Feature<Geometry>>(iter)) {
+        mapController.ol.newFeaturesGenerator = iter;
+        mapController.ol.prevFeatures = currentvectorSource.getFeatures();
       } else {
         console.info("not async generator");
       }
-    } else {
-      resetStoredFeatureCollection();
+    } else {      
+      currentvectorSource.clear(true);
+      mapController.ol.newFeaturesGenerator = undefined;
+      setFeaturesCount(0);
     }
   };
 };
