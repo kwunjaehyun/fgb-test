@@ -1,6 +1,5 @@
 import FeaturesCount from "./FeaturesCount";
 import MapTypeButton from "./MapTypeButton";
-import VectorSource from "./VectorSource";
 
 const Infomation = () => {
     
@@ -8,7 +7,6 @@ const Infomation = () => {
         <>
             <MapTypeButton />
             <FeaturesCount />
-            <VectorSource />
         </>
     )
 }

@@ -13,6 +13,9 @@ import WebGLVectorLayerRenderer from "ol/renderer/webgl/VectorLayer.js";
 import MapEvent from "ol/MapEvent";
 import Feature from "ol/Feature";
 import Geometry from "ol/geom/Geometry";
+import Style from "ol/style/Style";
+import Stroke from "ol/style/Stroke";
+import Fill from "ol/style/Fill";
 
 class WebGLLayer extends Layer {
   createRenderer(): WebGLVectorLayerRenderer {
@@ -20,7 +23,7 @@ class WebGLLayer extends Layer {
       style: {
         "stroke-color": ["*", ["get", "COLOR"], [0, 162, 232]],
         "stroke-width": 1.5,
-        "fill-color": ["*", ["get", "COLOR"], [153, 217, 234, 0.45]],
+        "fill-color": ["*", ["get", "COLOR"], [255, 174, 201, 0.45]],
       },
     });
   }
@@ -35,7 +38,10 @@ export class OlController {
   public newFeaturesGenerator: AsyncGenerator<Feature<Geometry>, any, unknown> | undefined;
   public prevFeatures: Feature<Geometry>[] | undefined;
 
-  constructor() {}
+  constructor() {
+    console.info(this.zizukVectorSource);
+    console.info(this.webglVectorSource);
+  }
 
   get olMap(): OlMap | undefined {
     return this._olMap;
@@ -62,6 +68,17 @@ export class OlController {
         }),
         new VectorLayer({
           source: this.zizukVectorSource,
+          style: [
+            new Style({
+              stroke: new Stroke({
+                color: 'red',
+                width: 3,
+              }),
+              fill: new Fill({
+                color: 'rgba(0, 0, 255, 0.1)',
+              })
+            })
+          ]
         }),
         new WebGLLayer({
           source: this.webglVectorSource,

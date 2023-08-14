@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useMapController } from "../../provider/MapControllerProvider";
-import { useChangeSize, useChangeViewCallback } from "../../hook/changeOpenlayers";
+import { useChangeSize, useChangeViewCallback } from "../../hook/ol";
 import { useRecoilValue, useSetRecoilState } from "recoil";
 import { OlViewInfomation } from "../../types/type";
-import { featuresCountState, olViewState, vectorSourceState } from "../../recoil/map";
-import Vector from "ol/source/Vector";
+import { featuresCountState, olViewState } from "../../recoil/map";
 
 const TwoControll = () => {
   const { mapController, olState } = useMapController();
@@ -13,7 +12,6 @@ const TwoControll = () => {
   const olViewInfomation = useRecoilValue<OlViewInfomation>(olViewState);
   const requestRef = useRef<number|undefined>(undefined);
   const setFeaturesCount = useSetRecoilState<number>(featuresCountState);
-  const currentvectorSource = useRecoilValue<Vector>(vectorSourceState);
   
   const animate = useCallback(async (time: number) => {
     const iter = mapController.ol.newFeaturesGenerator;
@@ -24,7 +22,7 @@ const TwoControll = () => {
     }
     const frameStartTime = new Date().getTime();
     const olController = mapController.ol;
-    const vs = currentvectorSource;
+    const vs = olController.webglVectorSource;
     let doing = true;
     let done: boolean | undefined = false;
     while (doing) {
@@ -52,17 +50,15 @@ const TwoControll = () => {
 
       setFeaturesCount(vs.getFeatures().length);
     }
-    // Change the state according to the animation
     requestRef.current = requestAnimationFrame(animate);
   }, []);
     
-  // DON’T DO THIS
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
     return () => {
       if (requestRef.current !== undefined) cancelAnimationFrame(requestRef.current)
     };
-  }, []); // Make sure the effect runs only once
+  }, []);
 
   useEffect(() => {
     if (!olState) return;
@@ -74,6 +70,7 @@ const TwoControll = () => {
     ol.appliViewState(olViewInfomation);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [olState]);
+
   return null;
 };
 export default TwoControll;

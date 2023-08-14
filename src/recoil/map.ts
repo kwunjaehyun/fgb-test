@@ -1,5 +1,5 @@
 import { atom, selector } from "recoil";
-import { CanvasSize, LonLat, OlViewInfomation, VectorSourceType } from "../types/type";
+import { CanvasSize, LonLat, OlViewInfomation } from "../types/type";
 
 import Feature from "ol/Feature"
 import Geometry from "ol/geom/Geometry"
@@ -42,23 +42,6 @@ export const featuresCountState = atom<number>({
   key: "featuresCountState",
   default: 0
 });
-
-export const vectorSourceTypeState = atom<VectorSourceType>({
-  key: "vectorSourceTypeState",
-  default: "webgl"
-});
-
-export const vectorSourceState = selector<Vector>({
-  key: 'vectorSourceState',
-  get: ({ get }) => {
-    const { mapController } = useMapController();
-    const ol = mapController.ol;
-    const {zizukVectorSource, webglVectorSource} = ol;
-    const vsType = get(vectorSourceTypeState);
-    
-    return vsType === 'canvas' ? zizukVectorSource : webglVectorSource;
-  },
-})
 
 /* export const resolutionState = selector<number>({
   key: "resolutionState",

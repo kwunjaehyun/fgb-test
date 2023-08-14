@@ -1,5 +1,5 @@
 import { useRecoilValue, useResetRecoilState, useSetRecoilState } from "recoil";
-import { centerState, featuresCountState, resolutionState, vectorSourceState, } from "../recoil/map";
+import { centerState, featuresCountState, resolutionState } from "../recoil/map";
 import { LonLat } from "../types/type";
 import OlMap from "ol/Map";
 
@@ -7,9 +7,7 @@ import { ObjectEvent } from "ol/Object";
 import * as flatgeobuf from "flatgeobuf";
 import Feature from "ol/Feature"
 import Geometry from "ol/geom/Geometry"
-import { produce } from "immer";
 import { useMapController } from "../provider/MapControllerProvider";
-import GeoJsonFormat from "ol/format/GeoJSON";
 import MapEvent from "ol/MapEvent";
 import Vector from "ol/source/Vector";
 
@@ -35,15 +33,13 @@ const isAsyncGenerator = <T>(
     typeof deserialize[Symbol.asyncIterator] === "function"
   );
 };
-const geojsonFormat = new GeoJsonFormat();
 
 export const useChangeViewCallback = () => {
   const { mapController } = useMapController();
   const setCenter = useSetRecoilState<LonLat>(centerState);
   const setResolution = useSetRecoilState<number>(resolutionState);
   const setFeaturesCount = useSetRecoilState<number>(featuresCountState);
-  const currentvectorSource = useRecoilValue<Vector>(vectorSourceState);
-  
+
   return async (event: MapEvent) => {
     const {map} = event;
     const olview = map.getView();    
@@ -59,6 +55,7 @@ export const useChangeViewCallback = () => {
     }
 
     const zoom = olview.getZoom();
+    const vs = mapController.ol.webglVectorSource;
     if (zoom && zoom > 15) {
       mapController.ol.newFeaturesGenerator = undefined;
       const extent = olview.calculateExtent();
@@ -77,12 +74,12 @@ export const useChangeViewCallback = () => {
       
       if (isAsyncGenerator<Feature<Geometry>>(iter)) {
         mapController.ol.newFeaturesGenerator = iter;
-        mapController.ol.prevFeatures = currentvectorSource.getFeatures();
+        mapController.ol.prevFeatures = vs.getFeatures();
       } else {
         console.info("not async generator");
       }
     } else {      
-      currentvectorSource.clear(true);
+      vs.clear(true);
       mapController.ol.newFeaturesGenerator = undefined;
       setFeaturesCount(0);
     }
